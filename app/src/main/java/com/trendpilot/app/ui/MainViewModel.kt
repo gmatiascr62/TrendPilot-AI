@@ -137,7 +137,7 @@ class MainViewModel @Inject constructor(
         _message.value = r.fold({ label }, { "No guardado: ${it.message}" })
         val after = r.getOrNull() ?: return@launch
         if (after.mode != before.mode || after.binanceEnvironment != before.binanceEnvironment ||
-            after.primaryProvider != before.primaryProvider || after.claudeBudgetUsd != before.claudeBudgetUsd || after.openAiBudgetUsd != before.openAiBudgetUsd
+            after.primaryProvider != before.primaryProvider || after.geminiBudgetUsd != before.geminiBudgetUsd || after.claudeBudgetUsd != before.claudeBudgetUsd || after.openAiBudgetUsd != before.openAiBudgetUsd
         ) {
             holder.reset()
             EngineService.start(getApplication(), restart = true)

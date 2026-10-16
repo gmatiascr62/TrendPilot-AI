@@ -38,13 +38,22 @@ data class AppSettings(
     val requireAiConfirmation: Boolean = true,
     val btcDefensiveDrop24hPct: Double = 5.0,
     // AI
-    val primaryProvider: String = "claude",
-    val claudeModel: String = "claude-opus-5-5",
+    /** Order: primary first, then Claude Haiku (or Gemini if Claude is primary), then OpenAI. */
+    val primaryProvider: String = "gemini",
+    val geminiModel: String = "gemini-flash-latest",
+    val geminiBudgetUsd: Double = 1.0,
+    /** 0 = Google AI Studio free tier. If you enable billing on the project, enter the paid prices here. */
+    val geminiInputPerMTok: Double = 0.0,
+    val geminiOutputPerMTok: Double = 0.0,
+    /** Haiku by default: the AI only reviews rule-generated candidates, and cost matters on a small account. */
+    val claudeModel: String = "claude-haiku-5-5",
     val claudeEffort: String = "medium",
+    /** Server-side refusal fallback; only sent for models that support it (not Haiku). */
     val claudeServerFallback: Boolean = true,
-    val claudeBudgetUsd: Double = 25.0,
-    val claudeInputPerMTok: Double = 4.0,
-    val claudeOutputPerMTok: Double = 20.0,
+    val claudeBudgetUsd: Double = 3.0,
+    /** claude-haiku-5-5 prices for prompts up to 100K tokens (above: 0.50 / 2.50). */
+    val claudeInputPerMTok: Double = 0.10,
+    val claudeOutputPerMTok: Double = 0.50,
     val openAiModel: String = "gpt-5.6-terra",
     val openAiBudgetUsd: Double = 10.0,
     /** Placeholder prices: verify against OpenAI's official pricing page and edit. */

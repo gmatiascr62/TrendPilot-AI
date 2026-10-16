@@ -133,9 +133,15 @@ fun SettingsScreen(vm: MainViewModel, authenticate: Authenticate) {
         }
         Section("Proveedor de IA") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(draft.primaryProvider == "claude", { draft = draft.copy(primaryProvider = "claude") }, label = { Text("Claude principal") })
-                FilterChip(draft.primaryProvider == "openai", { draft = draft.copy(primaryProvider = "openai") }, label = { Text("GPT principal") })
+                FilterChip(draft.primaryProvider == "gemini", { draft = draft.copy(primaryProvider = "gemini") }, label = { Text("Gemini") })
+                FilterChip(draft.primaryProvider == "claude", { draft = draft.copy(primaryProvider = "claude") }, label = { Text("Claude") })
+                FilterChip(draft.primaryProvider == "openai", { draft = draft.copy(primaryProvider = "openai") }, label = { Text("GPT") })
             }
+            Text("El elegido va primero; los demás quedan de respaldo (Gemini principal → Claude → GPT).", style = MaterialTheme.typography.bodySmall)
+            TextSetting("Modelo Gemini", draft.geminiModel) { draft = draft.copy(geminiModel = it) }
+            NumSetting("Presupuesto mensual Gemini (USD)", draft.geminiBudgetUsd) { draft = draft.copy(geminiBudgetUsd = it) }
+            NumSetting("Gemini US$/M tokens entrada (0 = gratis)", draft.geminiInputPerMTok) { draft = draft.copy(geminiInputPerMTok = it) }
+            NumSetting("Gemini US$/M tokens salida (0 = gratis)", draft.geminiOutputPerMTok) { draft = draft.copy(geminiOutputPerMTok = it) }
             TextSetting("Modelo Claude", draft.claudeModel) { draft = draft.copy(claudeModel = it) }
             TextSetting("Esfuerzo Claude (low/medium/high)", draft.claudeEffort) { draft = draft.copy(claudeEffort = it) }
             NumSetting("Presupuesto mensual Claude (USD)", draft.claudeBudgetUsd) { draft = draft.copy(claudeBudgetUsd = it) }
@@ -146,7 +152,7 @@ fun SettingsScreen(vm: MainViewModel, authenticate: Authenticate) {
             NumSetting("OpenAI US$/M tokens entrada (verificar)", draft.openAiInputPerMTok) { draft = draft.copy(openAiInputPerMTok = it) }
             NumSetting("OpenAI US$/M tokens salida (verificar)", draft.openAiOutputPerMTok) { draft = draft.copy(openAiOutputPerMTok = it) }
             SwitchSetting("Exigir confirmación de IA para comprar", draft.requireAiConfirmation) { draft = draft.copy(requireAiConfirmation = it) }
-            Text("Si Claude y GPT fallan o agotan presupuesto, no se abren posiciones nuevas.", style = MaterialTheme.typography.bodySmall)
+            Text("Si todos los proveedores fallan o agotan presupuesto, no se abren posiciones nuevas.", style = MaterialTheme.typography.bodySmall)
         }
         Section("Límites de riesgo") {
             NumSetting("Riesgo por operación (% patrimonio)", draft.maxRiskPerTradePct) { draft = draft.copy(maxRiskPerTradePct = it) }

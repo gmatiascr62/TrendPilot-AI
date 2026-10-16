@@ -28,10 +28,10 @@ import kotlinx.serialization.json.longOrNull
 import java.time.Duration
 
 data class ClaudeConfig(
-    val model: String = "claude-opus-5-5",
+    val model: String = "claude-haiku-5-5",
     val effort: String = "medium",
     val maxTokens: Long = 16_000,
-    /** Server-side refusal fallback (beta). Disable if the API rejects it for this account. */
+    /** Server-side refusal fallback (beta). Only sent for models that support it; Haiku does not. */
     val serverSideFallback: Boolean = true,
 )
 
@@ -77,7 +77,7 @@ class ClaudeProvider(
                     .build(),
             )
             .apply {
-                if (cfg.serverSideFallback) {
+                if (cfg.serverSideFallback && supportsServerFallback(cfg.model)) {
                     putAdditionalHeader("anthropic-beta", "server-side-fallback-2026-07-01")
                     putAdditionalBodyProperty("fallbacks", JsonValue.from("default"))
                 }
@@ -93,6 +93,10 @@ class ClaudeProvider(
     }
 
     companion object {
+        /** Opus 5.x, Sonnet 5.5 and Fable accept `fallbacks: "default"`; Haiku has no server-side fallback. */
+        fun supportsServerFallback(model: String): Boolean =
+            model.startsWith("claude-opus-5") || model == "claude-sonnet-5-5" || model.startsWith("claude-fable-")
+
         /** Converts kotlinx JSON into plain Kotlin values that JsonValue.from understands. */
         fun toPlain(e: JsonElement): Any? = when (e) {
             is JsonNull -> null

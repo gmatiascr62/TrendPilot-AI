@@ -24,6 +24,7 @@ enum class Secret(val key: String, val label: String) {
     BINANCE_API_KEY("binance_api_key", "Binance API key"),
     BINANCE_SECRET("binance_secret", "Binance secret"),
     ANTHROPIC_API_KEY("anthropic_api_key", "Anthropic (Claude) API key"),
+    GEMINI_API_KEY("gemini_api_key", "Google Gemini API key"),
     OPENAI_API_KEY("openai_api_key", "OpenAI API key"),
     COINGECKO_DEMO_KEY("coingecko_demo_key", "CoinGecko demo key (opcional)"),
 }
