@@ -24,7 +24,7 @@ Estado actual: **modo PAPER por defecto, modo REAL deshabilitado** y protegido p
 ### Decisiones confirmadas (2026-10-16)
 - Drawdown máximo: **8 %**, con reactivación manual.
 - Pérdida diaria: **2 %**, se reanuda al siguiente día UTC.
-- IA, en orden: **Gemini** (`gemini-flash-latest`, nivel gratuito de Google AI Studio) como principal; **Claude Haiku 5.5** (`claude-haiku-5-5`) como primer respaldo; **`gpt-5.6-terra`** como último respaldo. El orden y los modelos se cambian en Ajustes (Opus 5.5 sigue disponible).
+- IA, en orden: **Gemini** (`gemini-flash-lite-latest`, nivel gratuito de Google AI Studio; si se satura prueba `gemini-flash-latest`) como principal; **Claude Haiku 5.5** (`claude-haiku-5-5`) como primer respaldo; **`gpt-5.6-terra`** como último respaldo. El orden y los modelos se cambian en Ajustes (Opus 5.5 sigue disponible).
 - Conectividad, política "conservadora":
   - Sin conexión: no hay compras ni ajustes de stop. Los stops en Binance siguen activos.
   - Al reconectar: reconciliación REST completa.
@@ -96,7 +96,7 @@ Se cargan en **Configuración → Credenciales**, protegido con biometría o PIN
 ### Gemini (Google), principal
 1. Entrá a https://aistudio.google.com con tu cuenta de Google y creá una API key ("Get API key").
 2. Pegala en **Configuración → Credenciales → Google Gemini API key**.
-3. Modelo por defecto `gemini-flash-latest`, un alias que apunta al Flash vigente. Según fuentes de terceros, en octubre de 2026 el nivel gratuito solo incluye modelos Flash y Flash-Lite. No lo pude confirmar en la página oficial: revisá https://ai.google.dev/gemini-api/docs/pricing.
+3. Modelo por defecto `gemini-flash-lite-latest`: en el nivel gratuito tiene una cuota diaria mucho mayor que Flash (que ronda los 20 pedidos por día) y se satura menos. Ante errores temporales (429, 503) la app reintenta y después prueba `gemini-flash-latest`. Según fuentes de terceros, en octubre de 2026 el nivel gratuito solo incluye modelos Flash y Flash-Lite. No lo pude confirmar en la página oficial: revisá https://ai.google.dev/gemini-api/docs/pricing.
 4. Con 6 análisis por día, el uso queda muy por debajo de los límites diarios del nivel gratuito. Las tarifas vienen en 0. Si activás facturación en el proyecto de Google, cargá las tarifas pagas en Ajustes para que el presupuesto se controle.
 5. **Privacidad:** en el nivel gratuito Google puede usar las consultas para mejorar sus productos. La app envía indicadores de mercado y porcentajes de la cartera; nunca envía claves, IDs de cuenta ni órdenes.
 6. Si Gemini falla (límite alcanzado, caída o bloqueo), la app usa Claude Haiku, y después GPT.
