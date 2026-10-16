@@ -62,6 +62,23 @@ class PaperBroker(
 
     init { free[quoteAsset] = initialQuote }
 
+    /** Serializable snapshot so a simulated account survives process death. */
+    data class State(
+        val free: Map<String, BigDecimal>,
+        val locked: Map<String, BigDecimal>,
+        val orders: List<ExchangeOrder>,
+        val nextOrderId: Long,
+    )
+
+    suspend fun exportState(): State = lock.withLock { State(free.toMap(), locked.toMap(), orders.values.toList(), nextOrderId) }
+
+    suspend fun importState(state: State) = lock.withLock {
+        free.clear(); free.putAll(state.free)
+        locked.clear(); locked.putAll(state.locked)
+        orders.clear(); state.orders.forEach { orders[it.clientOrderId] = it }
+        nextOrderId = state.nextOrderId
+    }
+
     suspend fun updatePrice(tick: PriceTick) = lock.withLock {
         prices[tick.symbol] = tick
         triggerStops(tick)

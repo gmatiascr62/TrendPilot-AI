@@ -35,11 +35,14 @@ object Fixtures {
         startTime: Long = 1_600_000_000_000L,
         shockAt: Int? = null,
         shockPct: Double = -0.25,
+        noise: Double = 0.0,
+        seed: Long = 42,
     ): List<Candle> {
         val out = mutableListOf<Candle>()
+        val rnd = java.util.Random(seed)
         var level = start
         for (d in 0 until days) {
-            level *= (1 + dailyDrift)
+            level *= (1 + dailyDrift + noise * rnd.nextGaussian())
             if (shockAt != null && d == shockAt) level *= (1 + shockPct)
             val wave = 1 + amplitude * sin(d / 6.0)
             val close = level * wave
