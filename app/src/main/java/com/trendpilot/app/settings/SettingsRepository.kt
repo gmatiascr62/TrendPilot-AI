@@ -40,7 +40,7 @@ data class AppSettings(
     // AI
     /** Order: primary first, then Claude Haiku (or Gemini if Claude is primary), then OpenAI. */
     val primaryProvider: String = "gemini",
-    val geminiModel: String = "gemini-flash-latest",
+    val geminiModel: String = "gemini-flash-lite-latest",
     val geminiBudgetUsd: Double = 1.0,
     /** 0 = Google AI Studio free tier. If you enable billing on the project, enter the paid prices here. */
     val geminiInputPerMTok: Double = 0.0,
@@ -88,12 +88,15 @@ data class AppSettings(
     )
 }
 
+/** Old default (overloaded, ~20 free requests/day) moved to Flash-Lite; Flash stays as automatic fallback. */
+private fun AppSettings.migrated() = if (geminiModel == "gemini-flash-latest") copy(geminiModel = "gemini-flash-lite-latest") else this
+
 class SettingsRepository(private val context: Context) {
     private val key = stringPreferencesKey("app_settings_json")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     val flow: Flow<AppSettings> = context.settingsStore.data.map { prefs ->
-        prefs[key]?.let { runCatching { json.decodeFromString(AppSettings.serializer(), it) }.getOrNull() } ?: AppSettings()
+        (prefs[key]?.let { runCatching { json.decodeFromString(AppSettings.serializer(), it) }.getOrNull() } ?: AppSettings()).migrated()
     }
 
     @Volatile var current: AppSettings = AppSettings()

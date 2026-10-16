@@ -23,6 +23,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 data class OpenAiConfig(
     /** User-confirmed default (2026-10-16). Editable in Settings; validated with GET /v1/models. */
@@ -33,13 +34,15 @@ data class OpenAiConfig(
 
 /** OpenAI fallback via Chat Completions with a strict JSON-schema response format. */
 class OpenAiProvider(
-    private val http: OkHttpClient,
+    baseHttp: OkHttpClient,
     private val apiKey: () -> String?,
     private val config: () -> OpenAiConfig = { OpenAiConfig() },
 ) : AiProvider {
     override val name = "openai"
     override val model: String get() = config().model
     private val json = Json { ignoreUnknownKeys = true }
+    /** AI answers can take well over the app's default 15 s read timeout. */
+    private val http = baseHttp.newBuilder().readTimeout(90, TimeUnit.SECONDS).callTimeout(120, TimeUnit.SECONDS).build()
 
     override suspend fun analyze(request: AiRequest): AiRawResponse = withContext(Dispatchers.IO) {
         val cfg = config()

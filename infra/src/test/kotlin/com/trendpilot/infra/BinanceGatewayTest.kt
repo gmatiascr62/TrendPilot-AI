@@ -156,12 +156,42 @@ class BinanceGatewayTest {
         assertEquals(1500, r.usage.inputTokens)
         assertEquals(300, r.usage.outputTokens)
         val req = server.takeRequest()
-        assertEquals("/v1beta/models/gemini-flash-latest:generateContent", req.requestUrl!!.encodedPath)
+        assertEquals("/v1beta/models/gemini-flash-lite-latest:generateContent", req.requestUrl!!.encodedPath)
         assertEquals("g-key", req.getHeader("x-goog-api-key"))
         assertFalse(req.requestUrl.toString().contains("g-key"))
         val sent = Json.parseToJsonElement(req.body.readUtf8()).jsonObject
         assertTrue(sent["generationConfig"].toString().contains("\"responseMimeType\":\"application/json\""))
         assertTrue(sent["generationConfig"].toString().contains("responseJsonSchema"))
+    }
+
+    @Test fun `gemini retries overload, then falls back to the second model`() = runTest {
+        val overloaded = """{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}"""
+        repeat(3) { server.enqueue(MockResponse().setResponseCode(503).setBody(overloaded)) }
+        server.enqueue(MockResponse().setBody("""{"candidates":[{"content":{"parts":[{"text":"{}"}]},"finishReason":"STOP"}]}"""))
+        val p = GeminiProvider(http, { "g-key" }, { GeminiConfig(baseUrl = server.url("/v1beta").toString().trimEnd('/'), retryDelaysMs = listOf(0, 0)) })
+        val f = AssetFeatures("BTCUSDT", 1.0, 1.0, 1.0, 1.0, 50.0, 0.0, 0.1, 1.0, 0.0, 0.01, null, null, 1.0)
+        val snap = AiSnapshot("s", "2026-10-16T00:00:00Z", f, "NEUTRAL", emptyList(), 100.0, 0.0, 100.0, emptyList(), emptyList())
+        val r = p.analyze(AiPrompt.build(snap))
+        assertEquals("{}", r.json)
+        assertEquals("gemini-flash-latest", r.usage.model)
+        val paths = (1..4).map { server.takeRequest().requestUrl!!.encodedPath }
+        assertEquals(3, paths.count { it.contains("gemini-flash-lite-latest") })
+        assertTrue(paths.last().contains("/gemini-flash-latest:"))
+    }
+
+    @Test fun `gemini repeats without schema when the model rejects it, and does not retry a bad key`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(400).setBody("""{"error":{"code":400,"message":"Invalid JSON schema in responseJsonSchema"}}"""))
+        server.enqueue(MockResponse().setBody("""{"candidates":[{"content":{"parts":[{"text":"{}"}]},"finishReason":"STOP"}]}"""))
+        val p = GeminiProvider(http, { "g-key" }, { GeminiConfig(baseUrl = server.url("/v1beta").toString().trimEnd('/'), retryDelaysMs = listOf(0, 0)) })
+        val f = AssetFeatures("BTCUSDT", 1.0, 1.0, 1.0, 1.0, 50.0, 0.0, 0.1, 1.0, 0.0, 0.01, null, null, 1.0)
+        val snap = AiSnapshot("s", "2026-10-16T00:00:00Z", f, "NEUTRAL", emptyList(), 100.0, 0.0, 100.0, emptyList(), emptyList())
+        assertEquals("{}", p.analyze(AiPrompt.build(snap)).json)
+        server.takeRequest()
+        assertFalse(server.takeRequest().body.readUtf8().contains("responseJsonSchema"))
+
+        server.enqueue(MockResponse().setResponseCode(400).setBody("""{"error":{"code":400,"message":"API key not valid."}}"""))
+        assertTrue(runCatching { p.analyze(AiPrompt.build(snap)) }.exceptionOrNull() is com.trendpilot.infra.ai.GeminiHttpException)
+        assertEquals(3, server.requestCount)
     }
 
     @Test fun `gemini safety stop is reported as a refusal`() = runTest {
