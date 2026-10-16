@@ -152,6 +152,8 @@ class TradingEngine(
 
     suspend fun currentState(): EngineState = lock.withLock { state }
 
+    suspend fun openPositions(): List<Position> = positions.open(mode)
+
     suspend fun init() = lock.withLock {
         state = stateStore.load(mode) ?: EngineState(mode)
         // After a process restart we cannot know how long we were offline: treat the last OK
