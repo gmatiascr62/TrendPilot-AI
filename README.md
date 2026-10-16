@@ -24,7 +24,7 @@ Estado actual: **modo PAPER por defecto, modo REAL deshabilitado** y protegido p
 ### Decisiones confirmadas (2026-10-16)
 - Drawdown máximo: **8 %**, con reactivación manual.
 - Pérdida diaria: **2 %**, se reanuda al siguiente día UTC.
-- IA: **Claude Opus 5.5** (`claude-opus-5-5`), esfuerzo `medium`; respaldo **`gpt-5.6-terra`** (editable; la app verifica que el modelo exista).
+- IA: **Claude Haiku 5.5** (`claude-haiku-5-5`) por defecto por costo (Opus 5.5 disponible en Ajustes), esfuerzo `medium`; respaldo **`gpt-5.6-terra`** (editable; la app verifica que el modelo exista).
 - Conectividad, política "conservadora":
   - Sin conexión: no hay compras ni ajustes de stop. Los stops en Binance siguen activos.
   - Al reconectar: reconciliación REST completa.
@@ -97,8 +97,8 @@ Se cargan en **Configuración → Credenciales**, protegido con biometría o PIN
 El plan **Claude Pro no incluye acceso a la API**. La API se factura aparte:
 1. Entrá a https://console.anthropic.com, agregá un método de pago o créditos en **Billing** y, si querés, un límite de gasto mensual.
 2. Creá una API key en **API Keys** y pegala en la app.
-3. Modelo por defecto `claude-opus-5-5`, a US$ 4 / 20 por millón de tokens de entrada / salida, editable en Ajustes. Con un análisis cada 4 h, el costo estimado es de US$ 18–25 por mes. Sobre un capital de US$ 100–300 eso es mucho, así que considerá un modelo más barato o un presupuesto más bajo. La app aplica el presupuesto mensual por proveedor y registra tokens y costo.
-4. La app activa por defecto el fallback de rechazo del lado del servidor (beta `server-side-fallback-2026-07-01`). Se desactiva en `claudeServerFallback`.
+3. Modelo por defecto `claude-haiku-5-5`, a US$ 0,10 / 0,50 por millón de tokens de entrada / salida (prompts de hasta 100K tokens), con presupuesto de US$ 3 por mes. Con un análisis cada 4 h el costo estimado es de **US$ 0,50–1 por mes**. Si querés un análisis más profundo podés cambiar a `claude-opus-5-5` en Ajustes (US$ 4 / 20, unos US$ 20–30 por mes): actualizá también las tarifas y el presupuesto. La app aplica el presupuesto mensual por proveedor y registra tokens y costo.
+4. Con Opus 5.x o Sonnet 5.5 la app activa el fallback de rechazo del lado del servidor (beta `server-side-fallback-2026-07-01`; se desactiva en `claudeServerFallback`). Haiku no lo admite y no se envía.
 
 ### OpenAI (respaldo)
 Creá una key en https://platform.openai.com con un límite de uso. Las tarifas de `gpt-5.6-terra` vienen cargadas como **valores de ejemplo**: verificalas en la página oficial de precios y corregilas en Ajustes.

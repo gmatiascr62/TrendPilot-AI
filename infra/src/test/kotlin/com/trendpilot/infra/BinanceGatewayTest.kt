@@ -141,6 +141,13 @@ class BinanceGatewayTest {
         assertFalse(sent.toString().contains("sk-test"))
     }
 
+    @Test fun `server fallback is only sent for models that support it`() {
+        assertTrue(ClaudeProvider.supportsServerFallback("claude-opus-5-5"))
+        assertTrue(ClaudeProvider.supportsServerFallback("claude-sonnet-5-5"))
+        assertFalse(ClaudeProvider.supportsServerFallback("claude-haiku-5-5"))
+        assertEquals("claude-haiku-5-5", com.trendpilot.infra.ai.ClaudeConfig().model)
+    }
+
     @Test fun `claude schema conversion keeps structure`() {
         val plain = ClaudeProvider.toPlain(Json.parseToJsonElement(AiSchema.JSON_SCHEMA)) as Map<*, *>
         assertEquals(false, plain["additionalProperties"])
