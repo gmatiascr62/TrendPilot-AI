@@ -40,6 +40,8 @@ import com.trendpilot.core.paper.PaperBroker
 import com.trendpilot.core.universe.UniverseSelector
 import com.trendpilot.infra.ai.ClaudeConfig
 import com.trendpilot.infra.ai.ClaudeProvider
+import com.trendpilot.infra.ai.GeminiConfig
+import com.trendpilot.infra.ai.GeminiProvider
 import com.trendpilot.infra.ai.OpenAiConfig
 import com.trendpilot.infra.ai.OpenAiProvider
 import com.trendpilot.infra.binance.BinanceCredentials
@@ -147,7 +149,7 @@ class EngineHolder(
             override suspend fun rules(symbols: Collection<String>) = market.exchangeInfo(symbols).also { rulesCache.putAll(it) }
             override suspend fun tickers(symbols: Collection<String>) = market.ticker24h(symbols)
         }
-        secure.get(Secret.ANTHROPIC_API_KEY); secure.get(Secret.OPENAI_API_KEY); secure.get(Secret.COINGECKO_DEMO_KEY)
+        secure.get(Secret.ANTHROPIC_API_KEY); secure.get(Secret.GEMINI_API_KEY); secure.get(Secret.OPENAI_API_KEY); secure.get(Secret.COINGECKO_DEMO_KEY)
         val coinGecko = CoinGeckoClient(http, demoApiKey = { secure.getBlocking(Secret.COINGECKO_DEMO_KEY) })
         val universe = UniverseSource { now ->
             val caps = coinGecko.topByMarketCap(100)
@@ -170,7 +172,13 @@ class EngineHolder(
             }) to BudgetConfig(s.claudeBudgetUsd, ProviderPricing(s.claudeInputPerMTok, s.claudeOutputPerMTok), estimatedCallCost(s.claudeInputPerMTok, s.claudeOutputPerMTok))
             val openai = OpenAiProvider(http, { secure.getBlocking(Secret.OPENAI_API_KEY) }, { OpenAiConfig(model = settings.current.openAiModel) }) to
                 BudgetConfig(s.openAiBudgetUsd, ProviderPricing(s.openAiInputPerMTok, s.openAiOutputPerMTok), estimatedCallCost(s.openAiInputPerMTok, s.openAiOutputPerMTok))
-            if (s.primaryProvider == "openai") { add(openai); add(claude) } else { add(claude); add(openai) }
+            val gemini = GeminiProvider(http, { secure.getBlocking(Secret.GEMINI_API_KEY) }, { GeminiConfig(model = settings.current.geminiModel) }) to
+                BudgetConfig(s.geminiBudgetUsd, ProviderPricing(s.geminiInputPerMTok, s.geminiOutputPerMTok), estimatedCallCost(s.geminiInputPerMTok, s.geminiOutputPerMTok))
+            when (s.primaryProvider) {
+                "openai" -> { add(openai); add(claude); add(gemini) }
+                "claude" -> { add(claude); add(gemini); add(openai) }
+                else -> { add(gemini); add(claude); add(openai) }
+            }
         }
         val router = AiRouter(providers, RoomUsageLedger(db.aiUsage()))
         val positions = RoomPositionStore(db.positions(), db.trades())

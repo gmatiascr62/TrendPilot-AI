@@ -7,6 +7,8 @@ import com.trendpilot.core.model.OrderType
 import com.trendpilot.core.model.Side
 import com.trendpilot.core.model.TradingMode
 import com.trendpilot.infra.ai.ClaudeProvider
+import com.trendpilot.infra.ai.GeminiConfig
+import com.trendpilot.infra.ai.GeminiProvider
 import com.trendpilot.infra.ai.OpenAiConfig
 import com.trendpilot.infra.ai.OpenAiProvider
 import com.trendpilot.infra.binance.BinanceCredentials
@@ -139,6 +141,35 @@ class BinanceGatewayTest {
         assertEquals("gpt-5.6-terra", sent["model"].toString().trim('"'))
         assertTrue(sent["response_format"].toString().contains("\"strict\":true"))
         assertFalse(sent.toString().contains("sk-test"))
+    }
+
+    @Test fun `gemini provider sends json schema with the key in a header and skips thought parts`() = runTest {
+        server.enqueue(MockResponse().setBody("""
+            {"candidates":[{"content":{"parts":[{"text":"pensando","thought":true},{"text":"{\"ok\":true}"}]},"finishReason":"STOP"}],
+             "usageMetadata":{"promptTokenCount":1500,"candidatesTokenCount":200,"thoughtsTokenCount":100}}
+        """.trimIndent()))
+        val p = GeminiProvider(http, { "g-key" }, { GeminiConfig(baseUrl = server.url("/v1beta").toString().trimEnd('/')) })
+        val f = AssetFeatures("BTCUSDT", 1.0, 1.0, 1.0, 1.0, 50.0, 0.0, 0.1, 1.0, 0.0, 0.01, null, null, 1.0)
+        val snap = AiSnapshot("s", "2026-10-16T00:00:00Z", f, "NEUTRAL", emptyList(), 100.0, 0.0, 100.0, emptyList(), emptyList())
+        val r = p.analyze(AiPrompt.build(snap))
+        assertEquals("{\"ok\":true}", r.json)
+        assertEquals(1500, r.usage.inputTokens)
+        assertEquals(300, r.usage.outputTokens)
+        val req = server.takeRequest()
+        assertEquals("/v1beta/models/gemini-flash-latest:generateContent", req.requestUrl!!.encodedPath)
+        assertEquals("g-key", req.getHeader("x-goog-api-key"))
+        assertFalse(req.requestUrl.toString().contains("g-key"))
+        val sent = Json.parseToJsonElement(req.body.readUtf8()).jsonObject
+        assertTrue(sent["generationConfig"].toString().contains("\"responseMimeType\":\"application/json\""))
+        assertTrue(sent["generationConfig"].toString().contains("responseJsonSchema"))
+    }
+
+    @Test fun `gemini safety stop is reported as a refusal`() = runTest {
+        server.enqueue(MockResponse().setBody("""{"candidates":[{"content":{"parts":[]},"finishReason":"SAFETY"}]}"""))
+        val p = GeminiProvider(http, { "g-key" }, { GeminiConfig(baseUrl = server.url("/v1beta").toString().trimEnd('/')) })
+        val f = AssetFeatures("BTCUSDT", 1.0, 1.0, 1.0, 1.0, 50.0, 0.0, 0.1, 1.0, 0.0, 0.01, null, null, 1.0)
+        val snap = AiSnapshot("s", "2026-10-16T00:00:00Z", f, "NEUTRAL", emptyList(), 100.0, 0.0, 100.0, emptyList(), emptyList())
+        assertTrue(runCatching { p.analyze(AiPrompt.build(snap)) }.exceptionOrNull() is com.trendpilot.infra.ai.AiRefusalException)
     }
 
     @Test fun `server fallback is only sent for models that support it`() {

@@ -1,6 +1,6 @@
 # TrendPilot AI
 
-App Android nativa (Kotlin + Jetpack Compose), de uso personal, para swing trading de seguimiento de tendencia en **Binance Spot (solo pares USDT)**, con revisión por IA (Claude principal, GPT respaldo).
+App Android nativa (Kotlin + Jetpack Compose), de uso personal, para swing trading de seguimiento de tendencia en **Binance Spot (solo pares USDT)**, con revisión por IA (Gemini principal; Claude Haiku y GPT de respaldo).
 
 > **No es un bot que promete ganancias.** El trading de criptomonedas puede hacerte perder dinero. Un stop no garantiza el precio de salida ni la pérdida máxima. Backtests y paper trading no predicen resultados futuros.
 
@@ -24,7 +24,7 @@ Estado actual: **modo PAPER por defecto, modo REAL deshabilitado** y protegido p
 ### Decisiones confirmadas (2026-10-16)
 - Drawdown máximo: **8 %**, con reactivación manual.
 - Pérdida diaria: **2 %**, se reanuda al siguiente día UTC.
-- IA: **Claude Haiku 5.5** (`claude-haiku-5-5`) por defecto por costo (Opus 5.5 disponible en Ajustes), esfuerzo `medium`; respaldo **`gpt-5.6-terra`** (editable; la app verifica que el modelo exista).
+- IA, en orden: **Gemini** (`gemini-flash-latest`, nivel gratuito de Google AI Studio) como principal; **Claude Haiku 5.5** (`claude-haiku-5-5`) como primer respaldo; **`gpt-5.6-terra`** como último respaldo. El orden y los modelos se cambian en Ajustes (Opus 5.5 sigue disponible).
 - Conectividad, política "conservadora":
   - Sin conexión: no hay compras ni ajustes de stop. Los stops en Binance siguen activos.
   - Al reconectar: reconciliación REST completa.
@@ -43,9 +43,9 @@ core/   Kotlin puro (sin Android), con tests unitarios
   execution/   ExecutionCoordinator: único emisor de órdenes, mutex por cuenta, intenciones persistidas
   paper/       PaperBroker: exchange simulado con la misma interfaz y fallos inyectables
   backtest/    BacktestEngine sin look-ahead + walk-forward
-  ai/          Contrato JSON, validador determinista, router Claude→GPT con presupuesto
+  ai/          Contrato JSON, validador determinista, router Gemini→Claude→GPT con presupuesto
   engine/      TradingEngine: ciclos de 5 min (supervisión) y 4 h (análisis)
-infra/  JVM: cliente REST/WebSocket de Binance, CoinGecko, proveedores Claude (SDK oficial) y OpenAI
+infra/  JVM: cliente REST/WebSocket de Binance, CoinGecko, proveedores Gemini (REST), Claude (SDK oficial) y OpenAI
 app/    Android: Room, Keystore, servicio foreground, WorkManager, 8 pantallas Compose
 ```
 
@@ -93,14 +93,22 @@ Se cargan en **Configuración → Credenciales**, protegido con biometría o PIN
    - ❌ Futuros, opciones, transferencias universales: deshabilitados.
 3. **IP cambiante.** Binance recomienda restringir la key por IP, pero desde un teléfono con datos móviles la IP cambia. Sin restricción de IP, la key queda más expuesta si se filtra, y Binance puede limitar o expirar los permisos de trading de las keys sin restricción. Mitigaciones: sin retiros, una cuenta Spot dedicada solo al bot y rotación periódica de la key. No hay forma de ocultar esta limitación.
 
-### Claude (Anthropic)
+### Gemini (Google), principal
+1. Entrá a https://aistudio.google.com con tu cuenta de Google y creá una API key ("Get API key").
+2. Pegala en **Configuración → Credenciales → Google Gemini API key**.
+3. Modelo por defecto `gemini-flash-latest`, un alias que apunta al Flash vigente. Según fuentes de terceros, en octubre de 2026 el nivel gratuito solo incluye modelos Flash y Flash-Lite. No lo pude confirmar en la página oficial: revisá https://ai.google.dev/gemini-api/docs/pricing.
+4. Con 6 análisis por día, el uso queda muy por debajo de los límites diarios del nivel gratuito. Las tarifas vienen en 0. Si activás facturación en el proyecto de Google, cargá las tarifas pagas en Ajustes para que el presupuesto se controle.
+5. **Privacidad:** en el nivel gratuito Google puede usar las consultas para mejorar sus productos. La app envía indicadores de mercado y porcentajes de la cartera; nunca envía claves, IDs de cuenta ni órdenes.
+6. Si Gemini falla (límite alcanzado, caída o bloqueo), la app usa Claude Haiku, y después GPT.
+
+### Claude (Anthropic), primer respaldo
 El plan **Claude Pro no incluye acceso a la API**. La API se factura aparte:
 1. Entrá a https://console.anthropic.com, agregá un método de pago o créditos en **Billing** y, si querés, un límite de gasto mensual.
 2. Creá una API key en **API Keys** y pegala en la app.
 3. Modelo por defecto `claude-haiku-5-5`, a US$ 0,10 / 0,50 por millón de tokens de entrada / salida (prompts de hasta 100K tokens), con presupuesto de US$ 3 por mes. Con un análisis cada 4 h el costo estimado es de **US$ 0,50–1 por mes**. Si querés un análisis más profundo podés cambiar a `claude-opus-5-5` en Ajustes (US$ 4 / 20, unos US$ 20–30 por mes): actualizá también las tarifas y el presupuesto. La app aplica el presupuesto mensual por proveedor y registra tokens y costo.
 4. Con Opus 5.x o Sonnet 5.5 la app activa el fallback de rechazo del lado del servidor (beta `server-side-fallback-2026-07-01`; se desactiva en `claudeServerFallback`). Haiku no lo admite y no se envía.
 
-### OpenAI (respaldo)
+### OpenAI (último respaldo)
 Creá una key en https://platform.openai.com con un límite de uso. Las tarifas de `gpt-5.6-terra` vienen cargadas como **valores de ejemplo**: verificalas en la página oficial de precios y corregilas en Ajustes.
 
 ### CoinGecko (opcional)
@@ -151,7 +159,8 @@ Los tests cubren:
 - stop desaparecido;
 - ventas parciales;
 - desconexión y reanudación manual;
-- IA caída o sin presupuesto, y fallback a GPT;
+- IA caída o sin presupuesto, y fallback entre proveedores;
+- conector de Gemini (esquema JSON, key en cabecera, descarte de partes de razonamiento, bloqueo por seguridad);
 - validación del JSON de la IA;
 - drawdown y pérdida diaria;
 - backtest sin look-ahead;
@@ -161,4 +170,4 @@ Los tests cubren:
 
 Ningún test envía órdenes reales: todo usa el `PaperBroker` o un `MockWebServer`.
 
-Documentación consultada: [binance-spot-api-docs](https://github.com/binance/binance-spot-api-docs) (REST, filtros, enums, errores, WebSocket; changelog al 2026-09-18), SDK oficial `anthropic-java` 2.34.0 y la API de Chat Completions de OpenAI con `response_format: json_schema` estricto.
+Documentación consultada: [binance-spot-api-docs](https://github.com/binance/binance-spot-api-docs) (REST, filtros, enums, errores, WebSocket; changelog al 2026-09-18), SDK oficial `anthropic-java` 2.34.0, la API REST `generateContent` de Gemini (`responseMimeType` + `responseJsonSchema`, según el SDK oficial `python-genai`) y la API de Chat Completions de OpenAI con `response_format: json_schema` estricto.
