@@ -169,6 +169,8 @@ fun SettingsScreen(vm: MainViewModel, authenticate: Authenticate) {
             SwitchSetting("Compras y ventas", draft.notifyTrades) { draft = draft.copy(notifyTrades = it) }
             SwitchSetting("Cambios de stop", draft.notifyStops) { draft = draft.copy(notifyStops = it) }
             SwitchSetting("Conectividad y recuperación", draft.notifyConnectivity) { draft = draft.copy(notifyConnectivity = it) }
+            SwitchSetting("Permitir capturas de pantalla", draft.allowScreenshots) { draft = draft.copy(allowScreenshots = it) }
+            Text("Las API keys siempre se muestran enmascaradas. Desactivá las capturas si querés ocultar saldos en recientes.", style = MaterialTheme.typography.bodySmall)
             Text("Las alertas de seguridad y emergencia no se pueden silenciar.", style = MaterialTheme.typography.bodySmall)
         }
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

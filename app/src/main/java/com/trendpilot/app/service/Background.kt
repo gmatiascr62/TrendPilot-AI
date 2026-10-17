@@ -11,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.trendpilot.app.data.AppLog
 import com.trendpilot.app.engine.EngineHolder
 import com.trendpilot.app.settings.SettingsRepository
 import com.trendpilot.core.execution.EngineEvent
@@ -31,9 +32,11 @@ class WatchdogWorker @AssistedInject constructor(
     private val holder: EngineHolder,
     private val settings: SettingsRepository,
     private val notifier: Notifier,
+    private val log: AppLog,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (EngineService.running) return Result.success()
+        log.write("WATCHDOG", "el servicio no estaba activo: verificación de respaldo")
         val engine = runCatching { holder.ready() }.getOrElse { return Result.retry() }
         if (!engine.currentState().strategyRunning && engine.openPositions().isEmpty()) return Result.success()
         runCatching { engine.monitorCycle() }

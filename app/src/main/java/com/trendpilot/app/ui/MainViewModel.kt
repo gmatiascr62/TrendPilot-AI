@@ -59,6 +59,7 @@ class MainViewModel @Inject constructor(
     private val db: AppDatabase,
     val settingsRepo: SettingsRepository,
     private val secure: SecureSettings,
+    private val exporter: com.trendpilot.app.data.LogExporter,
 ) : AndroidViewModel(app) {
 
     val settings: StateFlow<AppSettings> = settingsRepo.flow.stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
@@ -109,6 +110,13 @@ class MainViewModel @Inject constructor(
     fun positionViews(list: List<PositionEntity>, prices: Map<String, BigDecimal>) = list.map { PositionView(it, prices[it.symbol]) }
 
     fun toast(msg: String?) { _message.value = msg }
+
+    /** Builds the diagnostic .txt (no secrets) and opens the Android share sheet. */
+    fun exportLog() = viewModelScope.launch(Dispatchers.IO) {
+        runCatching { exporter.export(engineState.value) }
+            .onSuccess { getApplication<Application>().startActivity(it) }
+            .onFailure { _message.value = "No se pudo exportar el log: ${it.message}" }
+    }
 
     private fun act(label: String, block: suspend () -> Any?) = viewModelScope.launch(Dispatchers.IO) {
         val r = runCatching { block() }

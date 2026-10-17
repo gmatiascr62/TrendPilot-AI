@@ -14,16 +14,27 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import com.trendpilot.app.service.EngineService
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.lifecycle.lifecycleScope
+import com.trendpilot.app.settings.SettingsRepository
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+    @Inject lateinit var settings: SettingsRepository
+
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        // Balances, positions and masked keys must not appear in screenshots or the recents preview.
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        // Screenshots are allowed unless the user turns them off in Settings (API keys are always masked).
+        lifecycleScope.launch {
+            settings.flow.collect { s ->
+                if (s.allowScreenshots) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                else window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         EngineService.start(this)

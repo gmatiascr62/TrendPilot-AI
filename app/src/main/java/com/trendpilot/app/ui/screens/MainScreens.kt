@@ -120,6 +120,8 @@ fun DashboardScreen(vm: MainViewModel) {
                 OutlinedButton(onClick = vm::analyzeNow) { Text("Analizar ahora") }
             }
             Text("Detener o pausar nunca cancela las protecciones en el exchange.", style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = vm::exportLog) { Text("Exportar log (.txt)") }
+            Text("Genera un informe sin claves para compartir y diagnosticar.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

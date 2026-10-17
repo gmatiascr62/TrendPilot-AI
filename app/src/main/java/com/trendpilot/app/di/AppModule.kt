@@ -3,6 +3,8 @@ package com.trendpilot.app.di
 import android.content.Context
 import androidx.room.Room
 import com.trendpilot.app.data.AppDatabase
+import com.trendpilot.app.data.AppLog
+import com.trendpilot.app.data.LogExporter
 import com.trendpilot.app.engine.EngineHolder
 import com.trendpilot.app.security.SecureSettings
 import com.trendpilot.app.service.Notifier
@@ -36,8 +38,13 @@ object AppModule {
     @Provides @Singleton fun secure(@ApplicationContext ctx: Context) = SecureSettings(ctx)
     @Provides @Singleton fun settings(@ApplicationContext ctx: Context) = SettingsRepository(ctx)
     @Provides @Singleton fun notifier(@ApplicationContext ctx: Context) = Notifier(ctx)
+    @Provides @Singleton fun appLog(@ApplicationContext ctx: Context) = AppLog(ctx)
 
     @Provides @Singleton
-    fun holder(http: OkHttpClient, db: AppDatabase, settings: SettingsRepository, secure: SecureSettings, notifier: Notifier) =
-        EngineHolder(http, db, settings, secure, notifier)
+    fun exporter(@ApplicationContext ctx: Context, db: AppDatabase, log: AppLog, settings: SettingsRepository, secure: SecureSettings) =
+        LogExporter(ctx, db, log, settings, secure)
+
+    @Provides @Singleton
+    fun holder(http: OkHttpClient, db: AppDatabase, settings: SettingsRepository, secure: SecureSettings, notifier: Notifier, log: AppLog) =
+        EngineHolder(http, db, settings, secure, notifier, log)
 }

@@ -141,6 +141,7 @@ interface IntentDao {
     @Query("SELECT * FROM intents WHERE clientOrderId = :cid ORDER BY updatedAtMs DESC LIMIT 1") suspend fun byClientOrderId(cid: String): IntentEntity?
     @Query("SELECT * FROM intents WHERE mode = :mode AND status IN ('PREPARED','UNKNOWN')") suspend fun unresolved(mode: String): List<IntentEntity>
     @Query("SELECT * FROM intents WHERE mode = :mode ORDER BY createdAtMs DESC LIMIT :limit") fun recent(mode: String, limit: Int = 200): Flow<List<IntentEntity>>
+    @Query("SELECT * FROM intents WHERE mode = :mode ORDER BY createdAtMs DESC LIMIT :limit") suspend fun recentList(mode: String, limit: Int): List<IntentEntity>
 }
 
 @Dao
@@ -155,18 +156,21 @@ interface PositionDao {
 interface TradeDao {
     @Insert suspend fun insert(e: TradeEntity)
     @Query("SELECT * FROM trades WHERE mode = :mode ORDER BY closedAtMs DESC") fun all(mode: String): Flow<List<TradeEntity>>
+    @Query("SELECT * FROM trades WHERE mode = :mode ORDER BY closedAtMs DESC LIMIT :limit") suspend fun recentList(mode: String, limit: Int): List<TradeEntity>
 }
 
 @Dao
 interface EventDao {
     @Insert suspend fun insert(e: EventEntity)
     @Query("SELECT * FROM events WHERE mode = :mode ORDER BY timestampMs DESC LIMIT :limit") fun recent(mode: String, limit: Int = 300): Flow<List<EventEntity>>
+    @Query("SELECT * FROM events WHERE mode = :mode ORDER BY timestampMs DESC LIMIT :limit") suspend fun recentList(mode: String, limit: Int): List<EventEntity>
 }
 
 @Dao
 interface DecisionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(e: DecisionEntity)
     @Query("SELECT * FROM decisions WHERE mode = :mode ORDER BY timestampMs DESC LIMIT :limit") fun recent(mode: String, limit: Int = 300): Flow<List<DecisionEntity>>
+    @Query("SELECT * FROM decisions WHERE mode = :mode ORDER BY timestampMs DESC LIMIT :limit") suspend fun recentList(mode: String, limit: Int): List<DecisionEntity>
 }
 
 @Dao
@@ -174,6 +178,7 @@ interface AiUsageDao {
     @Insert suspend fun insert(e: AiUsageEntity)
     @Query("SELECT COALESCE(SUM(costUsd), 0) FROM ai_usage WHERE provider = :provider AND timestampMs >= :fromMs") suspend fun spentSince(provider: String, fromMs: Long): Double
     @Query("SELECT * FROM ai_usage ORDER BY timestampMs DESC LIMIT 100") fun recent(): Flow<List<AiUsageEntity>>
+    @Query("SELECT * FROM ai_usage ORDER BY timestampMs DESC LIMIT :limit") suspend fun recentList(limit: Int): List<AiUsageEntity>
 }
 
 @Dao

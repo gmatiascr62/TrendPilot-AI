@@ -1,6 +1,7 @@
 package com.trendpilot.app.engine
 
 import com.trendpilot.app.data.AppDatabase
+import com.trendpilot.app.data.AppLog
 import com.trendpilot.app.data.EquityEntity
 import com.trendpilot.app.data.EventEntity
 import com.trendpilot.app.data.KvEngineStateStore
@@ -19,6 +20,7 @@ import com.trendpilot.core.ai.AiProvider
 import com.trendpilot.core.ai.AiRouter
 import com.trendpilot.core.ai.BudgetConfig
 import com.trendpilot.core.ai.ProviderPricing
+import com.trendpilot.core.engine.DecisionLog
 import com.trendpilot.core.engine.MarketDataSource
 import com.trendpilot.core.engine.TradingEngine
 import com.trendpilot.core.engine.UniverseSource
@@ -66,6 +68,7 @@ class EngineHolder(
     private val settings: SettingsRepository,
     private val secure: SecureSettings,
     private val notifier: Notifier,
+    private val log: AppLog,
 ) {
     private val mutex = Mutex()
     private var engine: TradingEngine? = null
@@ -160,7 +163,13 @@ class EngineHolder(
             UniverseSelector.select(caps, r, tickers, now)
         }
 
+        val roomDecisions = RoomDecisionLog(db.decisions())
+        val loggedDecisions = DecisionLog { d ->
+            log.write("DECISION", "${d.kind} ${d.symbol ?: ""} ${d.summary} | ${d.details.take(400)}")
+            roomDecisions.record(d)
+        }
         val sink = EventSink { e: EngineEvent ->
+            log.write("EVENTO", "${e.mode} ${e.level} ${e.title}: ${e.detail}")
             db.events().insert(EventEntity(0, e.level.name, e.mode.name, e.title, e.detail, e.symbol, e.timestampMs))
             notifier.onEvent(e, settings.current)
         }
@@ -186,7 +195,7 @@ class EngineHolder(
 
         return TradingEngine(
             gateway = gateway, market = dataSource, universeSource = universe, positions = positions,
-            stateStore = KvEngineStateStore(db.kv()), events = sink, decisions = RoomDecisionLog(db.decisions()), ai = router,
+            stateStore = KvEngineStateStore(db.kv()), events = sink, decisions = loggedDecisions, ai = router,
             config = { settings.current.engineConfig() }, clock = SystemClock,
         ) { guards ->
             ExecutionCoordinator(gateway, intents, positions, sink, guards, rules, ExecutionConfig(feeRate = 0.001), SystemClock)
