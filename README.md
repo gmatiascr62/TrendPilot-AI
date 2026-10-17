@@ -132,6 +132,15 @@ Una "demo key" gratuita sube el límite de consultas. No es una credencial de tr
 
    Empezá con un tamaño pequeño.
 
+### Diagnóstico
+- **Dashboard → Controles → "Exportar log (.txt)"** genera un informe y abre el menú para compartirlo (WhatsApp, mail, Drive…). El informe incluye:
+  - el estado del motor y la configuración;
+  - las decisiones, alertas y órdenes;
+  - el uso de la IA;
+  - las últimas 1500 líneas del registro de ciclos (`engine_log.txt`, en el almacenamiento privado de la app, con rotación a ~1 MB).
+- **No incluye claves:** solo indica si cada credencial está cargada, y el texto se filtra por si alguna apareciera.
+- **Capturas de pantalla:** están permitidas por defecto y se desactivan en Configuración → Notificaciones → "Permitir capturas de pantalla". Las API keys siempre se muestran enmascaradas.
+
 Acciones manuales:
 - **Detener análisis** y **pausar compras** no tocan las protecciones.
 - **Vender** cancela solo el stop de esa posición, justo antes de venderla. Si la venta falla, la protección se repone.

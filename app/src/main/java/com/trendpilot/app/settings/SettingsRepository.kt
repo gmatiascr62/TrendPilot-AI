@@ -64,6 +64,8 @@ data class AppSettings(
     val notifyStops: Boolean = true,
     val notifySecurity: Boolean = true,
     val notifyConnectivity: Boolean = true,
+    /** When false the app sets FLAG_SECURE (no screenshots, hidden in recents). API keys are always masked. */
+    val allowScreenshots: Boolean = true,
     // Real mode checklist acknowledgements
     val ackPaperReviewed: Boolean = false,
     val ackStopNoGuarantee: Boolean = false,

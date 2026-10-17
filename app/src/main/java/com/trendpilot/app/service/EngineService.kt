@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.trendpilot.app.data.AppLog
 import com.trendpilot.app.engine.EngineHolder
 import com.trendpilot.app.settings.SettingsRepository
 import com.trendpilot.core.model.TradingMode
@@ -35,6 +36,7 @@ class EngineService : Service() {
     @Inject lateinit var holder: EngineHolder
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var notifier: Notifier
+    @Inject lateinit var log: AppLog
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var loop: Job? = null
@@ -47,6 +49,7 @@ class EngineService : Service() {
         val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
         ServiceCompat.startForeground(this, Notifier.ENGINE_ID, notifier.engineNotification("Iniciando supervisión…"), type)
         running = true
+        log.write("SERVICIO", "creado")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -61,7 +64,11 @@ class EngineService : Service() {
     private fun startLoop() {
         loop?.cancel(); feed?.cancel()
         loop = scope.launch {
-            val engine = holder.ready()
+            val engine = try { holder.ready() } catch (e: Exception) {
+                log.error("SERVICIO", "no se pudo iniciar el motor", e)
+                notifier.updateEngine("No se pudo iniciar el motor: ${e.javaClass.simpleName}. Abrí la app.")
+                return@launch
+            }
             startPaperFeed()
             while (isActive) {
                 runCycle(engine)
@@ -72,6 +79,7 @@ class EngineService : Service() {
 
     private suspend fun runCycle(engine: com.trendpilot.core.engine.TradingEngine) {
         val s = settings.load()
+        log.write("CICLO", "inicio ${engine.mode}")
         try {
             if (engine.mode == TradingMode.PAPER) {
                 val st = engine.currentState()
@@ -91,7 +99,9 @@ class EngineService : Service() {
                 else -> "activo"
             }
             notifier.updateEngine("${engine.mode} · $status · patrimonio $eq USDT · última revisión $time")
+            log.write("CICLO", "fin: $status · patrimonio $eq · conexión ${st.connectivity.connected} · reconciliación ${st.reconciliationClean} · IA ${st.aiAvailable} · universo ${st.universe?.selected?.size ?: 0} · último análisis ${st.lastAnalysisMs?.let { SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it)) } ?: "-"}")
         } catch (e: Exception) {
+            log.error("CICLO", "error", e)
             notifier.updateEngine("${s.mode} · error en el ciclo: ${e.javaClass.simpleName}. Reintentando.")
         }
     }
@@ -119,6 +129,7 @@ class EngineService : Service() {
 
     override fun onDestroy() {
         running = false
+        log.write("SERVICIO", "destruido por el sistema o detenido")
         scope.cancel()
         super.onDestroy()
     }
