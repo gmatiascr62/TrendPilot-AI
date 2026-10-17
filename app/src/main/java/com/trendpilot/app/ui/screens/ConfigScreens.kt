@@ -98,7 +98,7 @@ fun BacktestScreen(vm: MainViewModel) {
 }
 
 @Composable
-private fun NumberField(label: String, value: String, onChange: (String) -> Unit) {
+internal fun NumberField(label: String, value: String, onChange: (String) -> Unit) {
     OutlinedTextField(value, onChange, label = { Text(label) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
 }
 

@@ -287,6 +287,7 @@ fun PaperScreen(vm: MainViewModel, authenticate: Authenticate) {
     val balance by vm.paperBalance.collectAsState()
     val trades by vm.trades.collectAsState()
     var confirm by remember { mutableStateOf(false) }
+    var newCapital by remember { mutableStateOf("500") }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
         Section("Cuenta simulada") {
             if (settings.mode != "PAPER") Text("Estás en modo ${settings.mode}. El paper trading usa su propio libro, separado.", color = Amber)
@@ -305,11 +306,17 @@ fun PaperScreen(vm: MainViewModel, authenticate: Authenticate) {
                 style = MaterialTheme.typography.bodySmall)
         }
         Section("Reiniciar") {
-            OutlinedButton(onClick = { authenticate("Reiniciar cuenta paper") { confirm = true } }) { Text("Reiniciar cuenta paper…", color = Red) }
+            NumberField("Capital inicial para el reinicio (USDT)", newCapital) { newCapital = it }
+            val capital = newCapital.replace(',', '.').toDoubleOrNull()
+            val valid = capital != null && capital in 50.0..1_000_000.0
+            if (!valid) Text("Ingresa un monto entre 50 y 1.000.000 USDT.", color = Amber)
+            Text("Con poco capital y monedas volátiles, el stop de protección puede quedar bajo el mínimo de 5 USDT de Binance y el bot no entra. 500 USDT o más evita ese bloqueo.",
+                style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { authenticate("Reiniciar cuenta paper") { confirm = true } }, enabled = valid) { Text("Reiniciar cuenta paper…", color = Red) }
         }
     }
-    if (confirm) ConfirmDialog("Reiniciar paper", "Se borra el saldo virtual y reinicia el conteo de 30 días. El historial se conserva.", typed = "REINICIAR",
-        onConfirm = { vm.resetPaper(settings.paperInitialCapital) }, onDismiss = { confirm = false })
+    if (confirm) ConfirmDialog("Reiniciar paper", "Se borra el saldo virtual, se carga $newCapital USDT y reinicia el conteo de 30 días. El historial se conserva.", typed = "REINICIAR",
+        onConfirm = { newCapital.replace(',', '.').toDoubleOrNull()?.let { vm.resetPaper(it) } }, onDismiss = { confirm = false })
 }
 
 @Composable
