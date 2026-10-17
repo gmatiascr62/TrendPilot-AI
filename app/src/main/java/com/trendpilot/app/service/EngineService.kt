@@ -64,13 +64,22 @@ class EngineService : Service() {
     private fun startLoop() {
         loop?.cancel(); feed?.cancel()
         loop = scope.launch {
-            val engine = try { holder.ready() } catch (e: Exception) {
-                log.error("SERVICIO", "no se pudo iniciar el motor", e)
-                notifier.updateEngine("No se pudo iniciar el motor: ${e.javaClass.simpleName}. Abrí la app.")
-                return@launch
-            }
-            startPaperFeed()
+            var current: com.trendpilot.core.engine.TradingEngine? = null
             while (isActive) {
+                // Re-read the engine every cycle: if the app rebuilt it (mode change, reset), the
+                // service follows the new instance instead of running a stale one.
+                val engine = try { holder.ready() } catch (e: Exception) {
+                    log.error("SERVICIO", "no se pudo iniciar el motor", e)
+                    notifier.updateEngine("No se pudo iniciar el motor: ${e.javaClass.simpleName}. Reintentando.")
+                    delay(60_000)
+                    continue
+                }
+                if (engine !== current) {
+                    if (current != null) log.write("SERVICIO", "motor reconstruido: el servicio usa la instancia nueva (${engine.mode})")
+                    current = engine
+                    feed?.cancel()
+                    startPaperFeed()
+                }
                 runCycle(engine)
                 delay(MONITOR_INTERVAL_MS)
             }

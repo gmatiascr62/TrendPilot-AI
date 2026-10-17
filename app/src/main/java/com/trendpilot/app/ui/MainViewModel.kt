@@ -153,8 +153,9 @@ class MainViewModel @Inject constructor(
     }
 
     fun saveSecret(secret: Secret, value: String) = viewModelScope.launch(Dispatchers.IO) {
+        // Providers read keys lazily from SecureSettings, so the running engine picks the new key up
+        // on its next call: no engine rebuild (which used to leave the service on a stale instance).
         secure.set(secret, value)
-        holder.reset()
         refreshSecrets()
         _message.value = "${secret.label} guardada (cifrada)"
     }

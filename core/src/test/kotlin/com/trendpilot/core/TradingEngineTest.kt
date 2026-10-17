@@ -138,6 +138,17 @@ class TradingEngineTest {
         assertTrue(env.decisions.any { it.details.contains("pausadas") })
     }
 
+    @Test fun `an approved candidate without a price is logged, never dropped silently`() = runTest {
+        val env = Env(this) { approve }
+        env.broker.updatePrice(PriceTick("BTCUSDT", BigDecimal.valueOf(btcSeries.last().close).setScale(2, java.math.RoundingMode.HALF_UP), env.clock.nowMs()))
+        env.engine.init()
+        env.engine.startStrategy()
+        env.engine.monitorCycle()
+        env.engine.analysisCycle(force = true) // ETHUSDT approved by the AI but the broker has no ETH price
+        assertTrue(env.positions.items.isEmpty())
+        assertTrue(env.decisions.any { it.kind == "RIESGO" && it.symbol == "ETHUSDT" && it.details.contains("sin precio") })
+    }
+
     @Test fun `entries wait for a reconciliation before trading`() = runTest {
         val env = Env(this) { approve }
         env.prices()
