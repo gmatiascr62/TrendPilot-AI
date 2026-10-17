@@ -340,11 +340,20 @@ class TradingEngine(
         }
     }
 
+    /** Every abandoned entry leaves a trace: nothing fails silently. */
+    private suspend fun skip(signal: EntrySignal, why: String, aiProvider: String?): Boolean {
+        log("RIESGO", signal.symbol, "Entrada no evaluada", why, aiProvider)
+        return false
+    }
+
     private suspend fun tryEnter(signal: EntrySignal, stop: Double, aiProvider: String?): Boolean {
         // Fresh state before EVERY order: balances, open orders, prices, rules, guards.
-        val pf = portfolio() ?: return false
-        val rules = rules(listOf(signal.symbol))[signal.symbol] ?: return false
-        val tick = runCatching { gateway.lastPrice(signal.symbol) }.getOrNull() ?: return false
+        val pf = portfolio() ?: return skip(signal, "no se pudo leer saldo u órdenes abiertas del exchange", aiProvider)
+        val rules = runCatching { rules(listOf(signal.symbol))[signal.symbol] }.getOrNull()
+            ?: return skip(signal, "no se pudieron obtener los filtros de ${signal.symbol}", aiProvider)
+        val tick = runCatching { gateway.lastPrice(signal.symbol) }.getOrElse { e ->
+            return skip(signal, "sin precio actual de ${signal.symbol}: ${e.message}", aiProvider)
+        }
         val req = EntryRequest(signal.symbol, rules, tick.price, tick.eventTimeMs, BigDecimal.valueOf(stop), clock.nowMs(), mode == TradingMode.REAL)
         val decision = RiskEngine(config().risk).evaluateEntry(req, pf, flags())
         return when (decision) {

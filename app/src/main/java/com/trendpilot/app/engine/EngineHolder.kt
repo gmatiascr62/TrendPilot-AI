@@ -131,7 +131,9 @@ class EngineHolder(
                 db.kv().get(PAPER_KEY)?.let { raw -> runCatching { broker.importState(PaperStateCodec.decode(raw)) } }
                 if (s.paperStartedAtMs == null) settings.update { it.copy(paperStartedAtMs = System.currentTimeMillis()) }
                 paperBroker = broker
-                PersistingGateway(broker) { db.kv().put(KvEntity(PAPER_KEY, PaperStateCodec.encode(broker.exportState()))) }
+                PersistingGateway(broker, { symbol -> market.price(symbol) }) {
+                    db.kv().put(KvEntity(PAPER_KEY, PaperStateCodec.encode(broker.exportState())))
+                }
             }
             TradingMode.REAL -> {
                 // Warm the decrypted cache so the signing callback never blocks on disk.
@@ -242,7 +244,23 @@ class EngineHolder(
 }
 
 /** Persists the simulated account after every mutating call. */
-private class PersistingGateway(private val broker: PaperBroker, private val persist: suspend () -> Unit) : ExchangeGateway by broker {
+private class PersistingGateway(
+    private val broker: PaperBroker,
+    private val fetchPrice: suspend (String) -> PriceTick,
+    private val persist: suspend () -> Unit,
+) : ExchangeGateway by broker {
+    /**
+     * The simulator only knows prices it was fed. When a price is missing or older than a minute
+     * (e.g. a symbol that just joined the universe), fetch the real one from Binance first.
+     */
+    override suspend fun lastPrice(symbol: String): PriceTick {
+        val cached = runCatching { broker.lastPrice(symbol) }.getOrNull()
+        if (cached != null && System.currentTimeMillis() - cached.eventTimeMs < 60_000) return cached
+        val fresh = runCatching { fetchPrice(symbol) }.getOrElse { return cached ?: throw it }
+        broker.updatePrice(fresh)
+        return fresh
+    }
+
     override suspend fun placeOrder(order: NewOrder): ExchangeOrder = try { broker.placeOrder(order) } finally { persist() }
     override suspend fun cancelOrder(symbol: String, clientOrderId: String): ExchangeOrder = try { broker.cancelOrder(symbol, clientOrderId) } finally { persist() }
     override suspend fun cancelReplace(symbol: String, cancelClientOrderId: String, newOrder: NewOrder): CancelReplaceResult =
