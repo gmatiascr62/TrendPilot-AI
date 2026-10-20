@@ -20,10 +20,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // CI decodes the DEBUG_KEYSTORE_B64 secret here so every build carries the same signature.
+    val stableKeystore = System.getenv("TP_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (stableKeystore != null) create("stable") {
+            storeFile = stableKeystore
+            storeType = "pkcs12"
+            storePassword = "android"
+            keyAlias = "trendpilot"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            if (stableKeystore != null) signingConfig = signingConfigs.getByName("stable")
         }
         release {
             isMinifyEnabled = false

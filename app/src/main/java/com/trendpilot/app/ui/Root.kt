@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.QueryStats
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
@@ -57,7 +56,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.trendpilot.app.R
-import com.trendpilot.app.ui.screens.BacktestScreen
 import com.trendpilot.app.ui.screens.DashboardScreen
 import com.trendpilot.app.ui.screens.HistoryScreen
 import com.trendpilot.app.ui.screens.PaperScreen
@@ -86,7 +84,6 @@ enum class Dest(val route: String, val label: String, val icon: ImageVector) {
     POSITIONS("positions", "Posiciones", Icons.Filled.ShowChart),
     HISTORY("history", "Historial y auditoría", Icons.Filled.History),
     STATS("stats", "Estadísticas", Icons.Filled.QueryStats),
-    BACKTEST("backtest", "Backtesting", Icons.Filled.Science),
     PAPER("paper", "Paper trading", Icons.Filled.AccountBalanceWallet),
     SETTINGS("settings", "Configuración", Icons.Filled.Settings),
     SECURITY("security", "Seguridad y emergencia", Icons.Filled.Security),
@@ -168,7 +165,6 @@ private fun MainContent(authenticate: Authenticate) {
                     composable(Dest.POSITIONS.route) { PositionsScreen(vm, authenticate) }
                     composable(Dest.HISTORY.route) { HistoryScreen(vm) }
                     composable(Dest.STATS.route) { StatsScreen(vm) }
-                    composable(Dest.BACKTEST.route) { BacktestScreen(vm) }
                     composable(Dest.PAPER.route) { PaperScreen(vm, authenticate) }
                     composable(Dest.SETTINGS.route) { SettingsScreen(vm, authenticate) }
                     composable(Dest.SECURITY.route) { SecurityScreen(vm, authenticate) }

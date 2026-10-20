@@ -322,11 +322,20 @@ class TradingEngine(
             when (a.action) {
                 "RAISE_STOP" -> {
                     val last = gateway.lastPrice(pos.symbol).price
-                    val proposed = BigDecimal.valueOf(a.proposedStop!!)
+                    val requested = BigDecimal.valueOf(a.proposedStop!!)
+                    // The AI must not choke the trend: its stop stays at least minStopAtr·ATR below price.
+                    val daily = daily(pos.symbol)
+                    if (daily.size < 60) { log("IA", pos.symbol, "Subida de stop rechazada", "sin historial diario para medir el ATR", provider); continue }
+                    val atr = Indicators.atr(daily).last()
+                    val ceiling = last - BigDecimal.valueOf(atr * config().strategy.minStopAtr)
+                    val proposed = if (requested > ceiling) ceiling else requested
+                    val clampNote = if (proposed < requested)
+                        "\nIA pidió ${requested.round(MathContext(8))}; limitado a ${proposed.round(MathContext(8))} (precio − ${config().strategy.minStopAtr} ATR)" else ""
                     val err = RiskEngine(config().risk).validateStopChange(pos.currentStop, proposed, last)
-                    if (err != null) { log("IA", pos.symbol, "Subida de stop rechazada", err, provider); continue }
+                        ?: if (proposed <= pos.currentStop) "el stop actual ya está a menos de ${config().strategy.minStopAtr} ATR del precio" else null
+                    if (err != null) { log("IA", pos.symbol, "Subida de stop rechazada", "$err$clampNote", provider); continue }
                     val out = coordinator.raiseStop(pos.id, proposed, "IA: ${a.reason}")
-                    log("STOP", pos.symbol, "Stop elevado por recomendación IA validada", "${a.reason}\n$out", provider)
+                    log("STOP", pos.symbol, "Stop elevado por recomendación IA validada", "${a.reason}$clampNote\n$out", provider)
                 }
                 "EXIT" -> if (a.confidence in config().aiExitMinConfidence) {
                     log("SALIDA", pos.symbol, "Venta anticipada recomendada por IA (${a.confidence})", a.reason, provider)

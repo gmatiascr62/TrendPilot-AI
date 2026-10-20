@@ -16,12 +16,10 @@ import com.trendpilot.app.security.SecureSettings
 import com.trendpilot.app.service.EngineService
 import com.trendpilot.app.settings.AppSettings
 import com.trendpilot.app.settings.SettingsRepository
-import com.trendpilot.core.backtest.BacktestConfig
-import com.trendpilot.core.backtest.BacktestEngine
-import com.trendpilot.core.backtest.BacktestResult
 import com.trendpilot.core.engine.EngineState
+import com.trendpilot.core.model.Candle
+import com.trendpilot.core.model.Interval
 import com.trendpilot.core.model.TradingMode
-import com.trendpilot.core.risk.RiskConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,11 +42,10 @@ data class PositionView(val p: PositionEntity, val lastPrice: BigDecimal?) {
     val unrealizedQuote: Double? get() = lastPrice?.let { it.toDouble() * p.quantity.toDouble() - p.costBasisQuote.toDouble() }
 }
 
-sealed interface BacktestUi {
-    data object Idle : BacktestUi
-    data class Running(val progress: String) : BacktestUi
-    data class Done(val result: BacktestResult, val folds: List<BacktestResult>, val symbols: List<String>) : BacktestUi
-    data class Error(val message: String) : BacktestUi
+sealed interface ChartUi {
+    data object Loading : ChartUi
+    data class Ready(val candles: List<Candle>) : ChartUi
+    data class Error(val message: String) : ChartUi
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -81,8 +78,9 @@ class MainViewModel @Inject constructor(
     val message: StateFlow<String?> = _message.asStateFlow()
     private val _secretsMasked = MutableStateFlow<Map<Secret, String>>(emptyMap())
     val secretsMasked: StateFlow<Map<Secret, String>> = _secretsMasked.asStateFlow()
-    private val _backtest = MutableStateFlow<BacktestUi>(BacktestUi.Idle)
-    val backtest: StateFlow<BacktestUi> = _backtest.asStateFlow()
+    /** Chart open for a position (position id → state); null when closed. */
+    private val _chart = MutableStateFlow<Pair<String, ChartUi>?>(null)
+    val chart: StateFlow<Pair<String, ChartUi>?> = _chart.asStateFlow()
     private val _paperBalance = MutableStateFlow<BigDecimal?>(null)
     val paperBalance: StateFlow<BigDecimal?> = _paperBalance.asStateFlow()
 
@@ -189,38 +187,17 @@ class MainViewModel @Inject constructor(
         EngineService.start(getApplication(), restart = true)
     }
 
-    fun runBacktest(days: Int, capital: Double, folds: Int) = viewModelScope.launch(Dispatchers.Default) {
-        try {
-            val symbols = (engineState.value?.universe?.selected ?: DEFAULT_SYMBOLS).take(20).let { if ("BTCUSDT" in it) it else listOf("BTCUSDT") + it }
-            val market = holder.marketData()
-            val data = linkedMapOf<String, List<com.trendpilot.core.model.Candle>>()
-            for ((i, s) in symbols.withIndex()) {
-                _backtest.value = BacktestUi.Running("Descargando $s (${i + 1}/${symbols.size})")
-                runCatching { market.dailyHistory(s, days + 210) }.getOrNull()?.takeIf { it.size > 250 }?.let { data[s] = it }
-            }
-            require("BTCUSDT" in data) { "no se pudo descargar BTCUSDT" }
-            _backtest.value = BacktestUi.Running("Simulando…")
-            val s = settings.value
-            val cfg = BacktestConfig(
-                initialCapital = capital,
-                risk = RiskConfig(
-                    maxRiskPerTradePct = s.maxRiskPerTradePct, maxTotalExposurePct = s.maxTotalExposurePct, minReservePct = s.minReservePct,
-                    maxPerAssetPct = s.maxPerAssetPct, maxPositions = s.maxPositions, maxDrawdownPct = s.maxDrawdownPct,
-                    dailyLossLimitPct = s.dailyLossLimitPct, slippage = s.slippagePct / 100, requireAiConfirmation = false,
-                ),
-                slippage = s.slippagePct / 100,
-            )
-            val rules = runCatching { market.exchangeInfo(data.keys) }.getOrElse { emptyMap() }
-            val engine = BacktestEngine(cfg)
-            val result = engine.run(data, rules)
-            val wf = engine.walkForward(data, folds, rules)
-            _backtest.value = BacktestUi.Done(result, wf, data.keys.toList())
-        } catch (e: Exception) {
-            _backtest.value = BacktestUi.Error(e.message ?: e.javaClass.simpleName)
-        }
+    /** Loads 4h candles covering at least the last week (and the whole position) for the chart. */
+    fun openChart(p: PositionEntity) = viewModelScope.launch(Dispatchers.IO) {
+        _chart.value = p.id to ChartUi.Loading
+        val now = System.currentTimeMillis()
+        val since = minOf(now - 7 * 86_400_000L, p.openedAtMs - 86_400_000L)
+        val count = ((now - since) / Interval.H4.millis + 1).toInt().coerceIn(42, 180)
+        _chart.value = p.id to runCatching { holder.marketData().klines(p.symbol, Interval.H4, count) }.fold(
+            { if (it.isEmpty()) ChartUi.Error("Binance no devolvió velas") else ChartUi.Ready(it) },
+            { ChartUi.Error(it.message ?: it.javaClass.simpleName) },
+        )
     }
 
-    companion object {
-        val DEFAULT_SYMBOLS = listOf("BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "AVAXUSDT")
-    }
+    fun closeChart() { _chart.value = null }
 }

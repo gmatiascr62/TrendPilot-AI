@@ -70,6 +70,9 @@ app/    Android: Room, Keystore, servicio foreground, WorkManager, 8 pantallas C
 2. Descomprimí el zip e instalá el `.apk` en el teléfono. Hay que permitir "instalar apps de origen desconocido".
 3. Al abrir la app, permití las notificaciones.
 
+### Firma estable (actualizar sin perder datos)
+Android solo instala un APK nuevo **encima** del anterior (conservando saldo paper, posiciones, historial y claves) si ambos tienen la misma firma. La clave de firma vive en el secret `DEBUG_KEYSTORE_B64` del repositorio (**Settings → Secrets and variables → Actions**), nunca en el código porque el repo es público. Sin ese secret, cada build usa una firma temporal y hay que desinstalar antes de instalar.
+
 ### Configuración del teléfono (POCO F7 / HyperOS)
 - Ajustes → Apps → TrendPilot AI → **Ahorro de batería: Sin restricciones**.
 - Activá **Inicio automático**.
@@ -117,14 +120,10 @@ Una "demo key" gratuita sube el límite de consultas. No es una credencial de tr
 ---
 
 ## Uso recomendado
-1. **Backtesting.** Corré varias ventanas walk-forward y leé las advertencias de sesgo:
-   - sesgo de supervivencia del universo actual;
-   - las decisiones de la IA no se pueden reconstruir históricamente;
-   - los filtros históricos pudieron ser distintos.
-2. **Paper trading, como mínimo 30 días**, con precios reales y órdenes simuladas. Cumplir 30 días **no** habilita el modo real automáticamente.
-3. Auditá resultados, incidentes y fiabilidad en Historial y Estadísticas.
-4. **REAL testnet.** Verificá que las órdenes reales, los stops, la reconciliación y la recuperación se comporten como en paper.
-5. **REAL producción**, solo después de:
+1. **Paper trading, como mínimo 30 días**, con precios reales y órdenes simuladas. Cumplir 30 días **no** habilita el modo real automáticamente.
+2. Auditá resultados, incidentes y fiabilidad en Historial y Estadísticas.
+3. **REAL testnet.** Verificá que las órdenes reales, los stops, la reconciliación y la recuperación se comporten como en paper.
+4. **REAL producción**, solo después de:
    - completar el checklist;
    - verificar que la key no permite retiros;
    - pasar la biometría;
