@@ -29,6 +29,20 @@ jobs:
       - name: Unit tests (core + infra, JVM)
         run: ./gradlew :core:test :infra:test --stacktrace
 
+      # Stable signature so each new APK installs as an update (keeps the app's data). The key
+      # lives only in the DEBUG_KEYSTORE_B64 secret, never in the public repo; without it the
+      # runner's throwaway debug key is used and Android will ask to uninstall first.
+      - name: Restore signing key
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_B64" ]; then
+            echo "$DEBUG_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/trendpilot.p12"
+            echo "TP_KEYSTORE=$RUNNER_TEMP/trendpilot.p12" >> "$GITHUB_ENV"
+          else
+            echo "::warning::DEBUG_KEYSTORE_B64 no configurado: el APK usa una firma temporal y no se podrá instalar como actualización."
+          fi
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 

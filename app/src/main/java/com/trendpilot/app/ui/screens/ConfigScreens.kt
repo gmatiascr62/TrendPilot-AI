@@ -38,7 +38,6 @@ import com.trendpilot.app.security.Secret
 import com.trendpilot.app.settings.AppSettings
 import com.trendpilot.app.ui.Amber
 import com.trendpilot.app.ui.Authenticate
-import com.trendpilot.app.ui.BacktestUi
 import com.trendpilot.app.ui.ConfirmDialog
 import com.trendpilot.app.ui.Green
 import com.trendpilot.app.ui.KeyValue
@@ -48,54 +47,6 @@ import com.trendpilot.app.ui.Section
 import com.trendpilot.app.ui.fmtMoney
 import com.trendpilot.app.ui.fmtPct
 import com.trendpilot.app.ui.pnlColor
-
-@Composable
-fun BacktestScreen(vm: MainViewModel) {
-    val ui by vm.backtest.collectAsState()
-    var days by remember { mutableStateOf("730") }
-    var capital by remember { mutableStateOf("200") }
-    var folds by remember { mutableStateOf("4") }
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-        Section("Parámetros") {
-            NumberField("Días de historia (diario)", days) { days = it }
-            NumberField("Capital inicial (USDT)", capital) { capital = it }
-            NumberField("Ventanas walk-forward", folds) { folds = it }
-            Button(
-                onClick = { vm.runBacktest(days.toIntOrNull()?.coerceIn(300, 3000) ?: 730, capital.toDoubleOrNull() ?: 200.0, folds.toIntOrNull()?.coerceIn(2, 8) ?: 4) },
-                enabled = ui !is BacktestUi.Running,
-            ) { Text("Ejecutar backtest") }
-            Text("Velas diarias cerradas, sin look-ahead: decisión al cierre, ejecución en la apertura siguiente. Separado por completo de paper y real.",
-                style = MaterialTheme.typography.bodySmall)
-        }
-        when (val s = ui) {
-            BacktestUi.Idle -> Unit
-            is BacktestUi.Running -> Section("Ejecutando") { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(s.progress) }
-            is BacktestUi.Error -> Section("Error") { Text(s.message, color = Red) }
-            is BacktestUi.Done -> {
-                val r = s.result
-                Section("Resultado (período completo)") {
-                    KeyValue("Retorno estrategia", fmtPct(r.totalReturnPct), pnlColor(r.totalReturnPct))
-                    KeyValue("BTC buy-and-hold", fmtPct(r.btcReturnPct), pnlColor(r.btcReturnPct))
-                    KeyValue("Drawdown máximo", "%.2f%%".format(r.maxDrawdownPct))
-                    KeyValue("Operaciones", "${r.trades.size}")
-                    KeyValue("Win rate", "%.1f%%".format(r.winRatePct))
-                    KeyValue("Profit factor", if (r.profitFactor.isInfinite()) "∞" else "%.2f".format(r.profitFactor))
-                    KeyValue("R promedio", "%.2f".format(r.avgR))
-                    KeyValue("Comisiones", fmtMoney(r.totalFees))
-                    KeyValue("Exposición media", "%.1f%%".format(r.avgExposurePct))
-                    Text("Activos: ${s.symbols.joinToString()}", style = MaterialTheme.typography.bodySmall)
-                }
-                Section("Advertencias de sesgo") { r.warnings.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall, color = Amber) } }
-                Section("Walk-forward (fuera de muestra, parámetros fijos)") {
-                    s.folds.forEachIndexed { i, f ->
-                        KeyValue("Ventana ${i + 1}", "${fmtPct(f.totalReturnPct)} vs BTC ${fmtPct(f.btcReturnPct)} · DD %.1f%% · %d ops".format(f.maxDrawdownPct, f.trades.size), pnlColor(f.totalReturnPct))
-                    }
-                    Text("Resultados inestables entre ventanas indican dependencia de un régimen concreto.", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-    }
-}
 
 @Composable
 internal fun NumberField(label: String, value: String, onChange: (String) -> Unit) {

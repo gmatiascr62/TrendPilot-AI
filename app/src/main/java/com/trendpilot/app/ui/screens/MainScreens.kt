@@ -130,6 +130,7 @@ fun DashboardScreen(vm: MainViewModel) {
 fun PositionsScreen(vm: MainViewModel, authenticate: Authenticate) {
     val positions by vm.positions.collectAsState()
     val prices by vm.prices.collectAsState()
+    val chart by vm.chart.collectAsState()
     var confirm by remember { mutableStateOf<String?>(null) }
     val now = System.currentTimeMillis()
     LazyColumn(Modifier.padding(vertical = 8.dp)) {
@@ -147,8 +148,16 @@ fun PositionsScreen(vm: MainViewModel, authenticate: Authenticate) {
                 KeyValue("Riesgo al stop", fmtPct((p.currentStop.toDouble() / p.entryPrice.toDouble() - 1) * 100))
                 KeyValue("Tiempo en posición", fmtDuration(now - p.openedAtMs))
                 Text("Motivos: ${p.entryReasons}", style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = { authenticate("Confirmar venta de ${p.symbol}") { confirm = p.id } }) { Text("Vender a mercado…", color = Red) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { vm.openChart(p) }) { Text("Gráfico") }
+                    OutlinedButton(onClick = { authenticate("Confirmar venta de ${p.symbol}") { confirm = p.id } }) { Text("Vender a mercado…", color = Red) }
+                }
             }
+        }
+    }
+    chart?.let { (id, ui) ->
+        positions.firstOrNull { it.id == id }?.let { p ->
+            PositionChartDialog(p, ui, prices[p.symbol], onRetry = { vm.openChart(p) }, onDismiss = { vm.closeChart() })
         }
     }
     confirm?.let { id ->

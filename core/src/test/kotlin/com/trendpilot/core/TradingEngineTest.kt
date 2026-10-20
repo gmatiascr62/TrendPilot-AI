@@ -112,6 +112,27 @@ class TradingEngineTest {
         assertTrue(env.decisions.any { it.kind == "ENTRADA" && it.aiProvider != null })
     }
 
+    @Test fun `an AI stop raise never lands closer than the minimum ATR distance to the price`() = runTest {
+        var body = approve
+        val env = Env(this) { body }
+        env.prices()
+        env.engine.init(); env.engine.startStrategy(); env.engine.monitorCycle()
+        env.engine.analysisCycle(force = true)
+        val pos = env.positions.items.values.single()
+        val last = env.broker.lastPrice("ETHUSDT").price.toDouble()
+        body = """
+            {"snapshotId":"SNAP","dataAsOf":"ASOF","market":{"regime":"RISK_ON","defensiveRecommended":true,"reason":"cautela"},
+             "candidates":[],
+             "positions":[{"symbol":"ETHUSDT","action":"RAISE_STOP","confidence":"HIGH","reason":"asegurar","dataUsed":["close"],"proposedStop":${last * 0.999},"partialFraction":null,"invalidation":"-"}]}
+        """.trimIndent()
+        env.engine.analysisCycle(force = true)
+        val after = env.positions.items.getValue(pos.id).currentStop.toDouble()
+        val ceiling = last - com.trendpilot.core.indicators.Indicators.atr(ethSeries).last() * 1.5
+        assertTrue("stop $after must stay at least 1.5 ATR below $last", after <= ceiling + 1e-9)
+        assertTrue(after < last * 0.999)
+        assertTrue(env.decisions.any { it.symbol == "ETHUSDT" && (it.details.contains("limitado") || it.details.contains("menos de")) })
+    }
+
     @Test fun `AI unavailable blocks new entries but keeps running`() = runTest {
         val env = Env(this, null)
         env.prices()
